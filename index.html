@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Silver Hydrant - Seamless Push-Up + AI Summary + Offerings</title>
+    <style>
+      :root {
+        --bg: #de2d10;
+        --cursor: auto;
+
+        /* Intro timings */
+        --fade: 1.2s;
+        --gap: 0s;
+        --hold: 3s;
+        --rise: 0.95s; /* ride + exits */
+        --push: 0.7s;
+
+        /* Micro */
+        --appear: 0.45s;
+        --crossfade: 600ms;
+
+        /* Layout */
+        --headerH: 64px;
+        --swapH: 56px;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, Arial, sans-serif;
+      }
+      body {
+        background: var(--bg);
+        overflow-x: hidden;
+        scrollbar-gutter: stable;
+      }
+      html,
+      body,
+      * {
+        cursor: var(--cursor) !important;
+      }
+      * {
+        box-sizing: border-box;
+      }
+
+      /* ===== Intro ===== */
+      .intro {
+        position: fixed;
+        inset: 0;
+        z-index: 6;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        text-align: center;
+        padding: 24px;
+        background: transparent;
+      }
+      .intro-line {
+        max-width: min(92vw, 980px);
+        font-weight: 600;
+        line-height: 1.25;
+        font-size: clamp(18px, 4vw, 32px);
+      }
+      .piece {
+        opacity: 0;
+        transition: opacity var(--fade) ease;
+      }
+      .piece.show {
+        opacity: 1;
+      }
+      .intro-line.pushaway {
+        animation: pushUpFade var(--push) ease forwards;
+      }
+
+      /* ===== Stage with hydrant ===== */
+      .stage {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        position: relative;
+        z-index: 3;
+      }
+      .hydrant {
+        transform: translateY(120%);
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+      .hydrant.ready {
+        animation: hydrantRise var(--rise) cubic-bezier(0.2, 0.8, 0.2, 1)
+          forwards;
+      }
+      .hydrant.out {
+        animation: hydrantExit var(--rise) cubic-bezier(0.2, 0.8, 0.2, 1)
+          forwards;
+      }
+      .hyd-btn {
+        background: transparent;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .hyd-btn:hover {
+        transform: scale(1.06);
+      }
+      .hyd {
+        width: min(60vw, 420px);
+        height: auto;
+        display: block;
+        -webkit-user-drag: none;
+        user-select: none;
+      }
+
+      /* ===== Sticky header ===== */
+      header#topHeader {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        min-height: var(--headerH);
+        opacity: 0;
+        transform: translateY(-8px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+        pointer-events: none;
+      }
+      header#topHeader.show {
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+      }
+      .mini {
+        height: 48px;
+      }
+      .brand {
+        color: #fff;
+        font-weight: 700;
+      }
+
+      /* ===== Sections ===== */
+      main section {
+        width: min(92vw, 960px);
+        margin: 0 auto;
+        color: #fff;
+      }
+
+      /* Video section: we switch to top-docked layout after reveal */
+      .video-section {
+        min-height: calc(100vh - var(--headerH));
+        display: grid;
+        place-items: center;
+        padding: 24px 0;
+        position: relative;
+        z-index: 4;
+        transform: translateY(0);
+        will-change: transform;
+        transition: transform var(--rise) cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .video-section.dock-top {
+        place-items: start center;
+        padding-top: 12px; /* ensures CTAs are in view */
+      }
+
+      .video-block {
+        width: 100%;
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        opacity: 0;
+        transform: translateY(22px);
+        transition: opacity var(--crossfade) ease,
+          transform var(--rise) cubic-bezier(0.2, 0.8, 0.2, 1);
+        will-change: opacity, transform;
+        pointer-events: none;
+      }
+      .video-block.in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .video-block.ready {
+        pointer-events: auto;
+      }
+
+      .video-frame {
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #0c0c0c;
+        border-radius: 24px;
+        display: grid;
+        place-items: center;
+        font-weight: 600;
+        color: #fff;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5),
+          0 8px 24px rgba(0, 0, 0, 0.35);
+        max-height: calc(56vh - var(--headerH)); /* leave space for buttons */
+      }
+      @media (max-height: 760px) {
+        .video-frame {
+          max-height: calc(52vh - var(--headerH));
+        }
+      }
+
+      .meta-rail {
+        width: 100%;
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .video-cta {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity var(--appear) ease, transform var(--appear) ease;
+      }
+      .video-cta.in {
+        opacity: 1;
+        transform: none;
+      }
+
+      .btn {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-weight: 700;
+        background: #111;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+        transition: transform 0.12s ease, box-shadow 0.12s ease,
+          opacity 0.2s ease;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+      }
+      .btn.secondary {
+        background: #2b2b2b;
+      }
+
+      .ai-summary {
+        font-size: clamp(14px, 2.2vw, 18px);
+        line-height: 1.45;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        white-space: pre-wrap;
+      }
+      .ai-summary.visible {
+        opacity: 1;
+      }
+
+      /* In-place swap: Next CTA -> service buttons */
+      .level-swap {
+        position: relative;
+        min-height: var(--swapH);
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center; /* center, not right */
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 260ms ease;
+      }
+      .layer.show {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .next-cta {
+        gap: 12px;
+      }
+      .inline-services {
+        gap: 16px;
+      }
+
+      .svc-btn {
+        appearance: none;
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        border-radius: 16px;
+        padding: 14px 18px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        transition: transform 0.12s ease, box-shadow 0.12s ease,
+          border-color 0.12s ease, background 0.12s ease;
+      }
+      .svc-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.4);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+      }
+
+      .svc-panel {
+        background: #0c0c0c;
+        color: #fff;
+        border-radius: 24px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5),
+          0 8px 24px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        max-height: 0;
+        padding: 0 24px;
+        transition: max-height 0.5s ease, padding 0.5s ease, opacity 0.3s ease;
+        opacity: 0.98;
+      }
+      .svc-panel.open {
+        max-height: 520px;
+        padding: 24px;
+      }
+      .svc-title {
+        font-size: clamp(18px, 3vw, 24px);
+        font-weight: 800;
+        margin: 0 0 8px;
+      }
+      .svc-body {
+        font-size: clamp(14px, 2.2vw, 18px);
+        line-height: 1.45;
+      }
+
+      /* Keyframes */
+      @keyframes pushUpFade {
+        from {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(-24vh);
+          opacity: 0;
+        }
+      }
+      @keyframes hydrantRise {
+        0% {
+          transform: translateY(120%);
+          opacity: 0;
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes hydrantExit {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-22vh) scale(0.98);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .piece {
+          transition: none;
+          opacity: 1;
+        }
+        .intro-line.pushaway {
+          animation: none;
+          opacity: 0;
+        }
+        .hydrant {
+          animation: none;
+          transform: translateY(0);
+          opacity: 1;
+        }
+        .video-section {
+          transition: none;
+          transform: none;
+        }
+        .video-block {
+          opacity: 1;
+          transform: none;
+        }
+        .video-cta {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sticky header -->
+    <header id="topHeader">
+      <img class="mini" src="/hydrant.png" alt="Hydrant" />
+      <span class="brand">Silver Hydrant</span>
+    </header>
+
+    <!-- Stage with big hydrant -->
+    <div class="stage" id="stage">
+      <div class="hydrant" id="hydrant">
+        <button
+          class="hyd-btn"
+          id="hydrantBtn"
+          type="button"
+          aria-label="Start"
+        >
+          <img class="hyd" src="/hydrant.png" alt="Silver fire hydrant" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Intro overlay text -->
+    <div class="intro" id="intro">
+      <div class="intro-line" id="introLine" aria-live="polite">
+        <span class="piece sh">Silver Hydrant:</span>
+        <span class="piece rest rest-space-1"> </span>
+        <span class="piece rest">A </span>
+        <span class="piece rest">purpose-driven, </span>
+        <span class="piece human">human-centered </span>
+        <span class="piece aicf">AI consulting firm</span>
+        <span class="piece rest"> </span>
+        <span class="piece rest">guiding </span>
+        <span class="piece rest">companies </span>
+        <span class="piece rest">to </span>
+        <span class="piece rest">confidently </span>
+        <span class="piece rest">evolve </span>
+        <span class="piece rest">and </span>
+        <span class="piece rest">lead </span>
+        <span class="piece rest">in </span>
+        <span class="piece rest">the </span>
+        <span class="piece rest">AI </span>
+        <span class="piece future">future</span>
+      </div>
+    </div>
+
+    <main>
+      <!-- Video sits directly under stage -->
+      <section class="video-section" id="videoSection">
+        <div class="video-block" id="videoBlock">
+          <div class="video-frame" id="videoFrame">Video goes here</div>
+
+          <div class="meta-rail">
+            <!-- AI summarize CTA -->
+            <div class="video-cta" id="videoCta">
+              <button class="btn" id="btnSummarize">
+                Do not have time to watch the video? Summarize with AI
+              </button>
+            </div>
+
+            <!-- Summary text -->
+            <div class="ai-summary" id="aiSummary"></div>
+
+            <!-- In-place swap: Next CTA -> service buttons -->
+            <div class="level-swap">
+              <div class="layer next-cta" id="nextCta">
+                <button class="btn secondary" id="btnNext">
+                  Click to see what we can do
+                </button>
+              </div>
+              <div
+                class="layer inline-services"
+                id="inlineServices"
+                aria-hidden="true"
+              >
+                <button class="svc-btn" id="btnInspect">
+                  Hydrant Inspection
+                </button>
+                <button class="svc-btn" id="btnInstall">
+                  Hydrant Installation
+                </button>
+              </div>
+            </div>
+
+            <!-- Info panel -->
+            <div class="svc-panel" id="svcPanel">
+              <h3 class="svc-title" id="svcTitle"></h3>
+              <div class="svc-body" id="svcBody"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      /* Optional custom cursor (safe no-op if the asset is missing) */
+      (function initCursor() {
+        const hotspotX = 16,
+          hotspotY = 16;
+        const srcs = [
+          "/silver-hand.png",
+          "./silver-hand.png",
+          "/public/silver-hand.png",
+        ];
+        const tryLoad = (i) => {
+          if (i >= srcs.length) return;
+          const img = new Image();
+          img.onload = () => {
+            const w = 64,
+              h = 64,
+              cv = document.createElement("canvas"),
+              ctx = cv.getContext("2d");
+            cv.width = w;
+            cv.height = h;
+            const r = Math.min(w / img.width, h / img.height),
+              dw = Math.round(img.width * r),
+              dh = Math.round(img.height * r);
+            const dx = Math.round((w - dw) / 2),
+              dy = Math.round((h - dh) / 2);
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(img, dx, dy, dw, dh);
+            const url = cv.toDataURL("image/png");
+            document.documentElement.style.setProperty(
+              "--cursor",
+              `url("${url}") ${hotspotX} ${hotspotY}, auto`
+            );
+          };
+          img.onerror = () => tryLoad(i + 1);
+          img.src = srcs[i] + "?v=" + Date.now();
+        };
+        tryLoad(0);
+      })();
+
+      /* ===== Intro timing ===== */
+      const intro = document.getElementById("intro");
+      const introLine = document.getElementById("introLine");
+      const hydrantDiv = document.getElementById("hydrant");
+
+      const fadeMs =
+        Math.round(
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--fade"
+            )
+          ) * 1000
+        ) || 1200;
+      const gapMs =
+        Math.round(
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue("--gap")
+          ) * 1000
+        ) || 0;
+      const holdMs =
+        Math.round(
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--hold"
+            )
+          ) * 1000
+        ) || 4000;
+      const riseMs =
+        Math.round(
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--rise"
+            )
+          ) * 1000
+        ) || 950;
+      const pushMs =
+        Math.round(
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--push"
+            )
+          ) * 1000
+        ) || 700;
+
+      const groups = [
+        [intro.querySelector(".sh"), intro.querySelector(".rest-space-1")],
+        [intro.querySelector(".aicf")],
+        [intro.querySelector(".human")],
+        [intro.querySelector(".future")],
+        Array.from(intro.querySelectorAll(".rest")),
+      ];
+
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        groups.flat().forEach((el) => el && el.classList.add("show"));
+        introLine.classList.add("pushaway");
+        hydrantDiv.classList.add("ready");
+        intro.style.display = "none";
+      } else {
+        let t = 0;
+        groups.forEach((g) => {
+          setTimeout(() => {
+            g.forEach((el) => el && el.classList.add("show"));
+          }, t);
+          t += fadeMs + gapMs;
+        });
+        setTimeout(() => {
+          introLine.classList.add("pushaway");
+          hydrantDiv.classList.add("ready");
+        }, t + holdMs);
+        const total = t + holdMs + Math.max(riseMs, pushMs) + 100;
+        setTimeout(() => {
+          intro.style.display = "none";
+        }, total);
+      }
+
+      /* ===== Elements ===== */
+      const header = document.getElementById("topHeader");
+      const btnHydrant = document.getElementById("hydrantBtn");
+      const stage = document.getElementById("stage");
+      const videoSection = document.getElementById("videoSection");
+      const videoBlock = document.getElementById("videoBlock");
+      const videoCta = document.getElementById("videoCta");
+      const nextCta = document.getElementById("nextCta");
+
+      let revealed = false;
+
+      /* CLICK: header in, hydrant exits, video rides up */
+      btnHydrant.addEventListener(
+        "click",
+        () => {
+          if (revealed) return;
+          revealed = true;
+
+          window.scrollTo(0, 0);
+
+          header.classList.add("show");
+          requestAnimationFrame(() => {
+            const h = Math.ceil(header.getBoundingClientRect().height || 64);
+            document.documentElement.style.setProperty("--headerH", h + "px");
+          });
+
+          const stageH = Math.ceil(stage.getBoundingClientRect().height);
+
+          // temp spacer to hold layout height during the ride
+          const spacer = document.createElement("div");
+          spacer.id = "pushSpacer";
+          spacer.style.height = stageH + "px";
+          spacer.style.transition = `height ${riseMs}ms cubic-bezier(0.2,0.8,0.2,1)`;
+          stage.insertAdjacentElement("afterend", spacer);
+
+          // make the video visible so you see it move
+          videoBlock.classList.add("in");
+
+          // start ride
+          requestAnimationFrame(() => {
+            hydrantDiv.classList.remove("ready");
+            hydrantDiv.classList.add("out");
+
+            videoSection.style.transform = `translateY(-${stageH}px)`;
+            spacer.style.height = "0px";
+          });
+
+          // cleanup function (can be called by transitionend or fallback timer)
+          let finished = false;
+          const finishRide = () => {
+            if (finished) return;
+            finished = true;
+
+            // snap back without visual jump
+            const prevTransition = videoSection.style.transition;
+            videoSection.style.transition = "none";
+            videoSection.style.transform = "translateY(0)";
+            void videoSection.offsetWidth;
+            videoSection.style.transition = prevTransition;
+
+            // remove stage and spacer
+            stage.style.display = "none";
+            spacer.remove();
+
+            // dock content at the top so CTAs are immediately visible
+            videoSection.classList.add("dock-top");
+
+            // enable interactions and show both CTAs immediately
+            videoBlock.classList.add("ready");
+            videoCta.classList.add("in");
+            nextCta.classList.add("show");
+          };
+
+          // primary: wait for the transform transition to end
+          const onRideEnd = (e) => {
+            if (e.propertyName !== "transform") return;
+            videoSection.removeEventListener("transitionend", onRideEnd);
+            finishRide();
+          };
+          videoSection.addEventListener("transitionend", onRideEnd);
+
+          // fallback: if transitionend is missed (Safari/edge cases)
+          setTimeout(finishRide, riseMs + 80);
+        },
+        { passive: true }
+      );
+
+      /* ===== Summarize with AI ===== */
+      const btnSummarize = document.getElementById("btnSummarize");
+      const summaryEl = document.getElementById("aiSummary");
+      const typeSpeed = 18;
+
+      const summaryText = `This video traces the history of Beverly Hills and the story behind its iconic silver fire hydrants, painted to be more visible when it matters. The hydrants were always there, but they only became valuable once someone invested care to make them stand out.
+AI is similar. It is everywhere, but often overlooked until it is integrated with intention. Our mission is to turn the hydrants in your business into silver hydrants so your AI is visible, useful, and dependable.`;
+
+      function typeText(el, text, done) {
+        el.textContent = "";
+        el.classList.add("visible");
+        let i = 0;
+        (function tick() {
+          el.textContent += text[i] || "";
+          i++;
+          if (i < text.length) setTimeout(tick, typeSpeed);
+          else if (done) done();
+        })();
+      }
+
+      btnSummarize.addEventListener("click", () => {
+        const cta = document.getElementById("videoCta");
+        cta.style.transition = "opacity 200ms ease";
+        cta.style.opacity = "0";
+        cta.style.pointerEvents = "none";
+
+        setTimeout(() => {
+          cta.style.display = "none";
+          typeText(summaryEl, summaryText, () => {
+            // keep the “what we can do” CTA visible after summary
+            setTimeout(() => nextCta.classList.add("show"), 300);
+          });
+        }, 200);
+      });
+
+      /* ===== Offerings flow: Next CTA -> service buttons -> panel ===== */
+      const btnNext = document.getElementById("btnNext");
+      const inlineServices = document.getElementById("inlineServices");
+      const svcPanel = document.getElementById("svcPanel");
+      const svcTitle = document.getElementById("svcTitle");
+      const svcBody = document.getElementById("svcBody");
+      const btnInspect = document.getElementById("btnInspect");
+      const btnInstall = document.getElementById("btnInstall");
+
+      btnNext.addEventListener("click", () => {
+        nextCta.classList.remove("show");
+        inlineServices.setAttribute("aria-hidden", "false");
+        inlineServices.classList.add("show");
+      });
+
+      function openPanel(which) {
+        const title =
+          which === "install" ? "Hydrant Installation" : "Hydrant Inspection";
+        const body =
+          which === "install"
+            ? "We implement end to end. We map workflows, select tools, connect data, ship secure pipelines, and train your team to run with confidence."
+            : "We audit how AI can deliver value. You get gaps, risks, quick wins, and a clear roadmap to move your org toward an AI future.";
+        svcTitle.textContent = title;
+        svcBody.textContent = body;
+        svcPanel.classList.add("open");
+        svcPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      btnInspect.addEventListener("click", () => openPanel("inspect"));
+      btnInstall.addEventListener("click", () => openPanel("install"));
+    </script>
+  </body>
+</html>
