@@ -393,7 +393,7 @@
   <body>
     <!-- Sticky header -->
     <header id="topHeader">
-      <img class="mini" src="/hydrant.png" alt="Hydrant" />
+      <img class="mini" src="hydrant.png" alt="Hydrant" />
       <span class="brand">Silver Hydrant</span>
     </header>
 
@@ -406,7 +406,7 @@
           type="button"
           aria-label="Start"
         >
-          <img class="hyd" src="/hydrant.png" alt="Silver fire hydrant" />
+          <img class="hyd" src="hydrant.png" alt="Silver fire hydrant" />
         </button>
       </div>
     </div>
@@ -486,28 +486,24 @@
     <script>
       /* Optional custom cursor (safe no-op if the asset is missing) */
       (function initCursor() {
-        const hotspotX = 16,
-          hotspotY = 16;
+        const hotspotX = 16, hotspotY = 16;
+        // Prefer relative paths so GitHub Pages subpaths work
         const srcs = [
-          "/silver-hand.png",
           "./silver-hand.png",
-          "/public/silver-hand.png",
+          "silver-hand.png",
+          "public/silver-hand.png"
         ];
         const tryLoad = (i) => {
           if (i >= srcs.length) return;
           const img = new Image();
           img.onload = () => {
-            const w = 64,
-              h = 64,
-              cv = document.createElement("canvas"),
-              ctx = cv.getContext("2d");
-            cv.width = w;
-            cv.height = h;
+            const w = 64, h = 64, cv = document.createElement("canvas"), ctx = cv.getContext("2d");
+            cv.width = w; cv.height = h;
             const r = Math.min(w / img.width, h / img.height),
-              dw = Math.round(img.width * r),
-              dh = Math.round(img.height * r);
+                  dw = Math.round(img.width * r),
+                  dh = Math.round(img.height * r);
             const dx = Math.round((w - dw) / 2),
-              dy = Math.round((h - dh) / 2);
+                  dy = Math.round((h - dh) / 2);
             ctx.clearRect(0, 0, w, h);
             ctx.drawImage(img, dx, dy, dw, dh);
             const url = cv.toDataURL("image/png");
